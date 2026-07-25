@@ -42,9 +42,9 @@ jobs:
 
       - name: Run container smoke test
         run: |
-          docker run -d --name dash-smoke -p 3000:3000 test-dashboard:local
+          docker run -d --name dash-smoke -p 8000:8000 test-dashboard:local
           sleep 5
-          curl -f http://localhost:3000/api/status || (docker logs dash-smoke && exit 1)
+          curl -f http://localhost:8000/api/status || (docker logs dash-smoke && exit 1)
           docker rm -f dash-smoke
 
       - name: Run Trivy vulnerability & secret scanner

@@ -39,9 +39,9 @@ USER node
 
 # Health check endpoint verification
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD node -e "fetch('http://localhost:3000/api/status').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+  CMD node -e "fetch('http://localhost:8000/api/status').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
-EXPOSE 3000
+EXPOSE 8000
 
 # Execute server as non-root user
 CMD ["node", "server/index.js"]
