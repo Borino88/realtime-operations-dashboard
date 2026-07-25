@@ -1,11 +1,47 @@
-# Real-Time Operations Monitoring Dashboard
+# Real-Time Operations Monitoring Dashboard (`realtime-operations-dashboard`)
 
-[![CI Pipeline](https://github.com/Borino88/realtime-operations-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/Borino88/realtime-operations-dashboard/actions/workflows/ci.yml)
+[![CI & Docker Publish](https://github.com/Borino88/realtime-operations-dashboard/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Borino88/realtime-operations-dashboard/actions/workflows/docker-publish.yml)
+[![Docker Pulls](https://img.shields.io/badge/Docker%20Hub-borino88%2Frealtime--operations--dashboard-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://app.docker.com/repository/docker/borino88/realtime-operations-dashboard)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org)
 [![WebSockets](https://img.shields.io/badge/WebSockets-Live_Stream-010101?style=for-the-badge&logo=socket.io&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
-[![React](https://img.shields.io/badge/React-18+-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.js.org)
 
 A high-performance, real-time operational telemetry and incident monitoring dashboard engineered by **Mahdi Fattahi** showcasing low-latency WebSocket streaming, role-based operational views, and immutable audit logging.
+
+---
+
+## 🐳 Docker Container Quick-Start
+
+The dashboard is packaged as a hardened, multi-stage Node.js container executing strictly under an unprivileged non-root user (`appuser`, UID `1000`) and compiled for multi-architecture deployments (`linux/amd64`, `linux/arm64`).
+
+### 1. Docker Pull Command
+```bash
+docker pull borino88/realtime-operations-dashboard:latest
+```
+
+### 2. Supported Tags & Architectures
+* **Tags:** `1.0.0`, `1.0`, `1`, `latest`, `main`
+* **Architectures:** `linux/amd64`, `linux/arm64`
+* **Docker Hub Repository:** [borino88/realtime-operations-dashboard](https://app.docker.com/repository/docker/borino88/realtime-operations-dashboard)
+
+### 3. Docker Compose Instructions
+Launch the operations dashboard in an isolated container stack:
+```yaml
+version: '3.8'
+services:
+  dashboard:
+    image: borino88/realtime-operations-dashboard:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    user: "1000:1000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/status').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+```
 
 ---
 
