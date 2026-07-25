@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Operations Monitoring Dashboard — Mahdi Fattahi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { bg: '#080c14', card: '#0f172a', border: '#1e293b' } } }
+        }
+    </script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; transition: background-color 0.2s; }
+        .pulse-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.8; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.8; } }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-[#080c14] text-slate-900 dark:text-slate-100 min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        function Dashboard() {
+            const [telemetry, setTelemetry] = useState({
+                status: "CONNECTING...",
+                metrics: { cpu_usage_percent: 0, memory_usage_percent: 0, p95_latency_ms: 0, active_tps: 0 },
+                incidents: [],
+                audit_trail: []
+            });
+            const [role, setRole] = useState("ADMIN"); // ADMIN, OPERATOR, AUDITOR
+            const [darkMode, setDarkMode] = useState(true);
+            const [wsStatus, setWsStatus] = useState("DISCONNECTED");
+            const wsRef = useRef(null);
+
+            useEffect(() => {
+                const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+                const wsUrl = `${protocol}//${window.location.host}`;
+                const ws = new WebSocket(wsUrl);
+                wsRef.current = ws;
+
+                ws.onopen = () => setWsStatus("CONNECTED");
+                ws.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg.type === "TELEMETRY_UPDATE" || msg.type === "CONNECTION_ACK") {
+                            setTelemetry(msg.data);
+                        }
+                    } catch (e) { console.error("WS parse error", e); }
+                };
+                ws.onclose = () => setWsStatus("DISCONNECTED");
+                return () => ws.close();
+            }, []);
+
+            const toggleTheme = () => {
+                setDarkMode(!darkMode);
+                document.documentElement.classList.toggle('dark');
+            };
+
+            const resolveIncident = async (id) => {
+                if (role === "AUDITOR") { alert("Access Denied: AUDITOR role is read-only."); return; }
+                await fetch('/api/incident/resolve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, actor: `${role}_USER` })
+                });
+            };
+
+            const injectTestIncident = async () => {
+                if (role !== "ADMIN") { alert("Access Denied: Only ADMIN role can inject simulation incidents."); return; }
+                await fetch('/api/incident/inject', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        severity: "CRITICAL",
+                        service: "Ledger Database Node 3",
+                        message: "Connection pool exhaustion detected (active connections > 98%)."
+                    })
+                });
+            };
+
+            const isHealthy = telemetry.status === "HEALTHY";
+
+            return (
+                <div className="max-w-7xl mx-auto p-4 md:p-6">
+                    {/* Header Bar */}
+                    <header className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#0f172a] p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm mb-6">
+                        <div className="flex items-center space-x-3 mb-4 md:mb-0">
+                            <span className={`pulse-dot ${wsStatus === 'CONNECTED' ? (isHealthy ? 'bg-emerald-500' : 'bg-red-500') : 'bg-amber-500'}`}></span>
+                            <div>
+                                <h1 className="text-xl font-bold tracking-tight">⚡ Real-Time Operations Telemetry</h1>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">System Status: <span className={`font-semibold ${isHealthy ? 'text-emerald-500' : 'text-red-500'}`}>{telemetry.status}</span> | WS: {wsStatus}</p>
+                            </div>
+                        </div>
+
+                        {/* Role & Theme Controls */}
+                        <div className="flex items-center space-x-4">
+                            <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
+                                {["ADMIN", "OPERATOR", "AUDITOR"].map((r) => (
+                                    <button
+                                        key={r}
+                                        onClick={() => setRole(r)}
+                                        className={`px-3 py-1 text-xs font-semibold rounded-md transition ${role === r ? 'bg-cyan-500 text-white shadow' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                                    >
+                                        {r}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <button onClick={toggleTheme} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-sm">
+                                {darkMode ? "☀️ Light" : "🌙 Dark"}
+                            </button>
+
+                            {role === "ADMIN" && (
+                                <button onClick={injectTestIncident} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition shadow">
+                                    🚨 Inject Incident
+                                </button>
+                            )}
+                        </div>
+                    </header>
+
+                    {/* Telemetry Metric Cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div className="bg-white dark:bg-[#0f172a] p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">CPU Utilization</span>
+                            <div className="text-2xl font-black mt-1 text-cyan-500">{telemetry.metrics.cpu_usage_percent}%</div>
+                            <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                                <div className="bg-cyan-500 h-full transition-all duration-500" style={{ width: `${telemetry.metrics.cpu_usage_percent}%` }}></div>
+                            </div>
+                        </div>
+                        <div className="bg-white dark:bg-[#0f172a] p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Memory Footprint</span>
+                            <div className="text-2xl font-black mt-1 text-emerald-500">{telemetry.metrics.memory_usage_percent}%</div>
+                            <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                                <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${telemetry.metrics.memory_usage_percent}%` }}></div>
+                            </div>
+                        </div>
+                        <div className="bg-white dark:bg-[#0f172a] p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">P95 API Latency</span>
+                            <div className={`text-2xl font-black mt-1 ${telemetry.metrics.p95_latency_ms > 150 ? 'text-red-500' : 'text-blue-500'}`}>{telemetry.metrics.p95_latency_ms} ms</div>
+                            <span className="text-[10px] text-slate-400">Target &lt; 100ms</span>
+                        </div>
+                        <div className="bg-white dark:bg-[#0f172a] p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Active Throughput</span>
+                            <div className="text-2xl font-black mt-1 text-purple-500">{telemetry.metrics.active_tps.toLocaleString()} TPS</div>
+                            <span className="text-[10px] text-slate-400">WebSocket Live Stream</span>
+                        </div>
+                    </div>
+
+                    {/* Incidents & Audit Table Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Incident Timeline */}
+                        <div className="bg-white dark:bg-[#0f172a] p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                            <h2 className="text-base font-bold mb-4 flex items-center justify-between">
+                                <span>🚨 Active Incident Timeline ({telemetry.incidents.length})</span>
+                                <span className="text-xs font-normal text-slate-400">Role: {role}</span>
+                            </h2>
+
+                            {telemetry.incidents.length === 0 ? (
+                                <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm border border-dashed border-slate-300 dark:border-slate-800 rounded-lg">
+                                    ✅ Zero active system incidents reported. All services nominal.
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {telemetry.incidents.map((inc) => (
+                                        <div key={inc.id} className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 rounded-lg flex justify-between items-center">
+                                            <div>
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="text-xs font-bold px-2 py-0.5 bg-red-500 text-white rounded">{inc.severity}</span>
+                                                    <span className="text-sm font-bold text-red-900 dark:text-red-300">{inc.service}</span>
+                                                </div>
+                                                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">{inc.message}</p>
+                                                <span className="text-[10px] text-slate-400">{new Date(inc.timestamp).toLocaleTimeString()} ({inc.id})</span>
+                                            </div>
+                                            {role !== "AUDITOR" && (
+                                                <button
+                                                    onClick={() => resolveIncident(inc.id)}
+                                                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded shadow transition"
+                                                >
+                                                    Resolve
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Audit Trail Log */}
+                        <div className="bg-white dark:bg-[#0f172a] p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                            <h2 className="text-base font-bold mb-4">📜 Immutable Operational Audit Trail</h2>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs">
+                                    <thead>
+                                        <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400">
+                                            <th className="pb-2">Timestamp</th>
+                                            <th className="pb-2">Actor</th>
+                                            <th className="pb-2">Event</th>
+                                            <th className="pb-2">Target</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                                        {telemetry.audit_trail.map((log) => (
+                                            <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                                                <td className="py-2.5 text-slate-500">{new Date(log.timestamp).toLocaleTimeString()}</td>
+                                                <td className="py-2.5 font-semibold text-cyan-500">{log.actor}</td>
+                                                <td className="py-2.5 font-mono">{log.action}</td>
+                                                <td className="py-2.5 text-slate-400">{log.target}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <footer className="mt-8 text-center text-xs text-slate-400">
+                        Architectural Reference Showcase by <a href="https://fattahi.xyz" className="text-cyan-500 hover:underline">Mahdi Fattahi</a>. Built with Next.js/React & Node WebSockets.
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Dashboard />);
+    </script>
+</body>
+</html>

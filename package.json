@@ -1,0 +1,29 @@
+{
+  "name": "realtime-operations-dashboard",
+  "version": "1.0.0",
+  "description": "Real-time operational monitoring dashboard with live WebSocket event streaming, role-based views, and incident timeline tracking.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "test": "node --test tests/server.test.js"
+  },
+  "keywords": [
+    "realtime",
+    "websockets",
+    "dashboard",
+    "operations",
+    "monitoring",
+    "nodejs",
+    "react"
+  ],
+  "author": "Mahdi Fattahi <a.borino88@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "supertest": "^6.3.4"
+  }
+}

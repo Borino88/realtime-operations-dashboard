@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  telemetry-dashboard:
+    build: .
+    container_name: realtime_ops_dashboard
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    volumes:
+      - ./public:/app/public
+    restart: unless-stopped
