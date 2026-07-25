@@ -23,10 +23,6 @@ LABEL org.opencontainers.image.version="1.0.0"
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.authors="Mahdi Fattahi <a.borino88@gmail.com>"
 
-# Create unprivileged non-root runtime user and group
-RUN addgroup -g 1000 appgroup && \
-    adduser -u 1000 -G appgroup -s /bin/sh -D appuser
-
 WORKDIR /app
 
 # Copy production node_modules from builder
@@ -36,10 +32,10 @@ COPY server/ ./server/
 COPY public/ ./public/
 
 # Set ownership to unprivileged user
-RUN chown -R appuser:appgroup /app
+RUN chown -R node:node /app
 
 # Switch to non-root runtime user
-USER appuser
+USER node
 
 # Health check endpoint verification
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
