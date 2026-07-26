@@ -34,6 +34,9 @@ COPY public/ ./public/
 # Set ownership to unprivileged user
 RUN chown -R node:node /app
 
+# Clean up global npm to eliminate container vulnerabilities in the runtime image
+RUN rm -rf /usr/local/lib/node_modules/npm
+
 # Switch to non-root runtime user
 USER node
 
