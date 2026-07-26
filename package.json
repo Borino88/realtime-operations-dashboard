@@ -25,5 +25,8 @@
   },
   "devDependencies": {
     "supertest": "^6.3.4"
+  },
+  "overrides": {
+    "tar": "^7.5.19"
   }
 }
